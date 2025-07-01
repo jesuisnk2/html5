@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<title>Chúa tể Caro</title>
+<style>
+.caro-game {
+    text-align: center;
+    font-family: Arial;
+}
+.board {
+    display: grid;
+    grid-template-columns: repeat(11, 32px);
+    grid-template-rows: repeat(11, 32px);
+    gap: 1px;
+    justify-content: center;
+    position: relative;
+}
+.cell {
+    width: 32px;
+    height: 32px;
+    font-size: 20px;
+    text-align: center;
+    line-height: 32px;
+    background: #f9f9f9;
+    border: 1px solid #ccc;
+    cursor: pointer;
+    position: relative;
+    transition: background 0.3s;
+}
+.cell.win {
+    background: yellow !important;
+}
+.X { color: #1a73e8; font-weight: bold; }
+.O { color: #e53935; font-weight: bold; }
+#reset-game {
+    margin-top: 10px;
+    padding: 8px 16px;
+    background: #ffca28;
+    border: none;
+    border-radius: 4px;
+    font-weight: bold;
+    cursor: pointer;
+}
+</style>
+</head>
+<body>
+
+<div class="box caro-game">
+    <div id="caro-board" class="board"></div>
+    <p id="game-status">Lượt bạn: <b>X</b></p>
+    <button type="submit" id="reset-game">Chơi lại</button>
+</div>
+
+<script>
+const S = 11;
+const directions = [[1,0],[0,1],[1,1],[1,-1]];
+let board=[], gameOver=false;
+const boardDiv=document.getElementById("caro-board");
+const statusDiv=document.getElementById("game-status");
+
+function init(){
+    boardDiv.innerHTML='';
+    board=[]; gameOver=false;
+    for(let y=0;y<S;y++){
+        board[y]=[];
+        for(let x=0;x<S;x++){
+            const e=document.createElement("div");
+            e.className="cell";
+            e.addEventListener("click",()=>playerMove(x,y));
+            boardDiv.appendChild(e);
+            board[y][x]=e;
+        }
+    }
+    statusDiv.innerHTML="Lượt bạn: <strong>X</strong>";
+}
+
+function playerMove(x,y){
+    if(gameOver || board[y][x].textContent) return;
+    place(x,y,"X");
+    if(checkWin(x,y,"X")) return endGame("Bạn thắng!");
+    if(isDraw()) return endGame("Hòa! Bắt đầu ván mới...");
+    statusDiv.innerHTML="BOT đang nghĩ...";
+    setTimeout(main,100);
+}
+
+function place(x,y,P){
+    board[y][x].textContent=P;
+    board[y][x].classList.add(P);
+}
+
+function count(x,y,dx,dy,P){
+    let s=0;
+    for(let i=1;i<5;i++){
+        let nx=x+dx*i, ny=y+dy*i;
+        if(nx<0||ny<0||nx>=S||ny>=S) break;
+        if(board[ny][nx].textContent===P) s++;
+        else break;
+    }
+    return s;
+}
+
+function checkWin(x,y,P){
+    for(let [dx,dy] of directions){
+        let cnt1 = count(x,y,dx,dy,P);
+        let cnt2 = count(x,y,-dx,-dy,P);
+        if(cnt1+cnt2+1>=5){
+            highlightWinLine(x,y,dx,dy,cnt1,cnt2,P);
+            return true;
+        }
+    }
+    return false;
+}
+
+function highlightWinLine(x,y,dx,dy,len1,len2,P){
+    for(let i=-len2;i<=len1;i++){
+        let nx=x+dx*i, ny=y+dy*i;
+        if(nx>=0 && ny>=0 && nx<S && ny<S){
+            board[ny][nx].classList.add("win");
+        }
+    }
+}
+
+function endGame(msg){
+    statusDiv.innerHTML=`<strong>${msg}</strong>`;
+    gameOver=true;
+    if(msg.includes("Hòa")) {
+        setTimeout(init, 1500); // đợi 1.5s rồi reset
+    }
+}
+
+function isDraw(){
+    for(let y=0;y<S;y++)
+        for(let x=0;x<S;x++)
+            if(!board[y][x].textContent) return false;
+    return true;
+}
+
+// === BOT ===
+function findMoves(){
+    let moves=[];
+    for(let y=0;y<S;y++)
+        for(let x=0;x<S;x++)
+            if(!board[y][x].textContent)
+                moves.push({x,y});
+    return moves;
+}
+
+function evaluate(x,y,P){
+    let score=0;
+    for(let [dx,dy] of directions){
+        let cnt = count(x,y,dx,dy,P)+count(x,y,-dx,-dy,P);
+        if(cnt>=4) score+=100000;
+        else if(cnt==3) score+=1000;
+        else if(cnt==2) score+=100;
+    }
+    return score;
+}
+
+function bestMove(){
+    let best={score:-Infinity};
+    for(let move of findMoves()){
+        let s = evaluate(move.x,move.y,"O")*1.2 + evaluate(move.x,move.y,"X");
+        if(s>best.score) best={...move,score:s};
+    }
+    return best;
+}
+
+function main(){
+    let move=bestMove();
+    if(move.x!==undefined){
+        place(move.x,move.y,"O");
+        if(checkWin(move.x,move.y,"O")) return endGame("BOT thắng!");
+        if(isDraw()) return endGame("Hòa! Bắt đầu ván mới...");
+        statusDiv.innerHTML="Lượt bạn: <strong>X</strong>";
+    }
+}
+
+document.getElementById("reset-game").onclick=init;
+init();
+</script>
+
+</body>
+</html>
